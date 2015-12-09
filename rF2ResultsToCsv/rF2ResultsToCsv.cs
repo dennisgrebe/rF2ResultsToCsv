@@ -61,7 +61,7 @@ namespace rF2ResultsToCsv
             public string carclass { get; set; }
             public string carnumber { get; set; }
             public string teamname { get; set; }
-            public string lap_num { get; set; }
+            public int lap_num { get; set; }
             public string lap_pos { get; set; }
             public string lap_start { get; set; }
             public string s1 { get; set; }
@@ -72,6 +72,13 @@ namespace rF2ResultsToCsv
             public string tires_rear { get; set; }
             public string pit { get; set; }
             public string laptime { get; set; }
+        }
+        // Define class for holding the driver swap data
+        public class swap_data
+        {
+            public string driver { get; set; }
+            public int begin { get; set; }
+            public int end { get; set; }
         }
 
         public rF2ResultsToCsv()
@@ -86,11 +93,13 @@ namespace rF2ResultsToCsv
         {
             // declaring variables needed later
             // For retrieving data:
-            string driver_name;
+            string driver_name; // currently iterated over driver name
+            string driver_name_org; // original driver name as defined in the results file, needs to be accessible because the main driver node is referenced by it instead of the currently in-car driver
+            string driver_write; // driver name to be written to list that will be the basis for csv output
             string carclass;
             string carnumber;
             string teamname;
-            string lap_num;
+            int lap_num;
             string lap_pos;
             string lap_start;
             string s1;
@@ -101,10 +110,12 @@ namespace rF2ResultsToCsv
             string tires_rear;
             string pit;
             string laptime;
+            int swap_start;
+            int swap_end;
 
 
             XmlDocument xmlinput = new XmlDocument();
-            string filepath = GetFilePath();// @"G:\rFactor2_VEC\UserData\Log\Results\2015_10_31_19_14_20-74Q1.xml";
+            string filepath = GetFilePath();
             xmlinput.Load(filepath);
             if (xmlinput.HasChildNodes)
             {
@@ -121,11 +132,10 @@ namespace rF2ResultsToCsv
             var csv = new StringBuilder();
             string newline;
 
-            // Needs Code to figure out driver swaps and accurately assign driver names to laps, as the results file does list all laps under a single (starting?) driver
-
+            // Loop for each driver
             foreach (XmlNode node in xmlnode)
             {
-                // Find and set driver name
+                // Find and set variables that are consistent for each driver node entry (driver is an exception, will be overwritten depending on swaps list later):
                 if (node.SelectSingleNode("Name").InnerText != null)
                 {
                     driver_name = node.SelectSingleNode("Name").InnerText;
@@ -134,51 +144,76 @@ namespace rF2ResultsToCsv
                 {
                     driver_name = "[Unknown]";
                 }
+                driver_name_org = driver_name;
+                if (node.SelectSingleNode("CarClass").InnerText != null)
+                {
+                    carclass = node.SelectSingleNode("CarClass").InnerText;
+                }
+                else
+                {
+                    carclass = "[Unknown]";
+                }
+                if (node.SelectSingleNode("CarNumber") != null)
+                {
+                    carnumber = node.SelectSingleNode("CarNumber").InnerText;
+                }
+                else
+                {
+                    carnumber = "[Unknown]";
+                }
+                if (node.SelectSingleNode("TeamName") != null)
+                {
+                    teamname = node.SelectSingleNode("TeamName").InnerText;
+                }
+                else
+                {
+                    teamname = "[Unknown]";
+                }
 
+                // Stuff to do for each driver goes here
+                List<swap_data> swap_list = new List<swap_data>();
+                XmlNodeList swaps = xmlinput.DocumentElement.SelectNodes("//Driver[Name=\"" + driver_name + "\"]/Swap");
+                foreach(XmlNode swapnode in swaps)
+                {
+                    if (swapnode.InnerText != null)
+                    {
+                        driver_name = swapnode.InnerText;
+                    }
+                    if (swapnode.Attributes["startLap"] != null)
+                    {
+                        swap_start = Int32.Parse(swapnode.Attributes["startLap"].InnerText);
+                    }
+                    else
+                    {
+                        swap_start = -1;
+                    }
+                    if (swapnode.Attributes["endLap"] != null)
+                    {
+                        swap_end = Int32.Parse(swapnode.Attributes["endLap"].InnerText);
+                    }
+                    else
+                    {
+                        swap_end = -1;
+                    }
+                    // Write to list:
+                    swap_list.Add(new swap_data
+                    {
+                        driver = driver_name, begin = swap_start, end = swap_end
+                    });
+                }
                 // Select all laps for a given driver.
                 XmlNodeList laps = xmlinput.DocumentElement.SelectNodes("//Driver[Name=\"" + driver_name + "\"]/Lap");
-
-                // Debugging outputs
-                if (laps.Count < 0)
-                {
-                    MessageBox.Show("Number of laps found for driver " + driver_name + ": " + laps.Count);
-                }
                 // Add laps to list
-
-                    foreach (XmlNode lapnode in laps)
+                foreach (XmlNode lapnode in laps)
                     {
                     // Check if the attribute exists, then set it to the value found in the results file - or set it to the default
-                    if (lapnode.Attributes["CarClass"] != null)
-                    {
-                        carclass = lapnode.Attributes["CarClass"].InnerText;
-                    }
-                    else
-                    {
-                        carclass = "[Unknown]";
-                    }
-                    if (lapnode.Attributes["CarNumber"] != null)
-                    {
-                        carnumber = lapnode.Attributes["CarNumber"].InnerText;
-                    }
-                    else
-                    {
-                        carnumber = "[Unknown]";
-                    }
-                    if (lapnode.Attributes["TeamName"] != null)
-                    {
-                        teamname = lapnode.Attributes["TeamName"].InnerText;
-                    }
-                    else
-                    {
-                        teamname = "[Unknown]";
-                    }
                     if (lapnode.Attributes["num"] != null)
                     {
-                        lap_num = lapnode.Attributes["num"].InnerText;
+                        lap_num = Int32.Parse(lapnode.Attributes["num"].InnerText);
                     }
                     else
                     {
-                        lap_num = "[Unknown]";
+                        lap_num = -1;
                     }
                     if (lapnode.Attributes["p"] != null)
                     {
@@ -260,15 +295,28 @@ namespace rF2ResultsToCsv
                     {
                         laptime = "999.999";
                     }
+
+                    // Find wanted entry from swaps list
+                    swap_data wanted_swap = swap_list.Find(entry => entry.begin <= lap_num && entry.end >= lap_num);
+                    if (wanted_swap != null)
+                    {
+                        driver_write = wanted_swap.driver;
+                    }
+                    else
+                    {
+                        driver_write = driver_name;
+                    }
+                    
+
                     // Write the selected values to the list
                     laps_list.Add(new rf2_lap
                     {
-                            driver = driver_name,       carclass = carclass,    carnumber = carnumber,  teamname = teamname,
+                            driver = driver_write,       carclass = carclass,    carnumber = carnumber,  teamname = teamname,
                             lap_num = lap_num,          lap_pos = lap_pos,      lap_start = lap_start,  s1 = s1,
                             s2 = s2,                    s3 = s3,                fuel = fuel,            tires_front = tires_front,
                             tires_rear = tires_rear,    pit = pit,              laptime = laptime,
                         }       );        
-                }
+                    }
                 // Stuff to do for each driver goes here
             }
             // Stuff done once after cycling through all the laps and drivers goes here
@@ -286,7 +334,15 @@ namespace rF2ResultsToCsv
                 n++;
             }
             string output_fpath = SaveFilePath();
-            File.WriteAllText(output_fpath, csv.ToString());
+            try
+            {
+                File.WriteAllText(output_fpath, csv.ToString());
+            }
+            catch (System.IO.IOException ex)
+            {
+                MessageBox.Show("Sorry, the file could not be written to. Please select your results file and preferred output again. " + Environment.NewLine + Environment.NewLine  + "Error Code: " + Environment.NewLine + ex);
+            }
+
         }
     }
 }
