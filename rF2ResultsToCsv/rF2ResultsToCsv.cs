@@ -14,6 +14,9 @@ namespace rF2ResultsToCsv
 {
     public partial class rF2ResultsToCsv : Form
     {
+        // "Global" Variables needed in both button methods
+        string output_fpath;
+        StringBuilder csv = new StringBuilder();
 
         // Function to select a file and return the filepath
         string GetFilePath ()
@@ -33,7 +36,6 @@ namespace rF2ResultsToCsv
             {
                 fp_ResultsFile = "Error";
             }
-            MessageBox.Show(fp_ResultsFile);
             return fp_ResultsFile;
         }
         string SaveFilePath()
@@ -51,7 +53,6 @@ namespace rF2ResultsToCsv
             {
                 fp_SaveFile = "Error";
             }
-            MessageBox.Show(fp_SaveFile);
             return fp_SaveFile;
         }
         // Define class for holding the relevant lap data
@@ -88,7 +89,7 @@ namespace rF2ResultsToCsv
         private void Form1_Load(object sender, EventArgs e)
         {
         }
-        // Currently named "Parse"
+        // Currently named "Open Results File"
         private void button1_Click(object sender, EventArgs e)
         {
             // declaring variables needed later
@@ -113,24 +114,21 @@ namespace rF2ResultsToCsv
             int swap_start;
             int swap_end;
 
-
+            toolStripStatusLabel1.Text = "Opening Results File";
             XmlDocument xmlinput = new XmlDocument();
             string filepath = GetFilePath();
+            label1.Text = "Results File: " + filepath;
+
+            toolStripStatusLabel1.Text = "Processing Results File";
             xmlinput.Load(filepath);
-            if (xmlinput.HasChildNodes)
-            {
-                MessageBox.Show("Selected resultsfile is not empty and has been loaded.");
-            }
             XmlNodeList xmlnode = xmlinput.DocumentElement.SelectNodes("//Driver");
-            if (xmlnode.Count > 0)
-            {
-                MessageBox.Show("Drivers list is not empty. " + xmlnode.Count + " drivers have been found in the results file.");
-            }
+            label2.Text = "Drivers found: " + xmlnode.Count;
+
             // Create list to dump lap data into
             List<rf2_lap> laps_list = new List<rf2_lap>();
-            // Container for csv output
-            var csv = new StringBuilder();
+            // Holder for building the string
             string newline;
+            toolStripStatusLabel1.Text = "Getting laps info";
 
             // Loop for each driver
             foreach (XmlNode node in xmlnode)
@@ -203,6 +201,7 @@ namespace rF2ResultsToCsv
                 }
                 // Select all laps for a given driver.
                 XmlNodeList laps = xmlinput.DocumentElement.SelectNodes("//Driver[Name=\"" + driver_name + "\"]/Lap");
+                toolStripStatusLabel1.Text = "Formatting laps info";
                 // Add laps to list
                 foreach (XmlNode lapnode in laps)
                     {
@@ -296,6 +295,7 @@ namespace rF2ResultsToCsv
                         laptime = "999.999";
                     }
 
+                    toolStripStatusLabel1.Text = "Getting driver swaps info";
                     // Find wanted entry from swaps list
                     swap_data wanted_swap = swap_list.Find(entry => entry.begin <= lap_num && entry.end >= lap_num);
                     if (wanted_swap != null)
@@ -306,7 +306,7 @@ namespace rF2ResultsToCsv
                     {
                         driver_write = driver_name;
                     }
-                    
+
 
                     // Write the selected values to the list
                     laps_list.Add(new rf2_lap
@@ -320,11 +320,14 @@ namespace rF2ResultsToCsv
                 // Stuff to do for each driver goes here
             }
             // Stuff done once after cycling through all the laps and drivers goes here
+            toolStripStatusLabel1.Text = "Preparing data";
             newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14}", "[Driver]","[CarClass]", "[CarNumber]", "[TeamName]", "[LapNum]", "[LapPos]", "[LapStart]", "[Sector1]", "[Sector2]", "[Sector3]", "[Fuel]", "[TiresFront]", "[TiresRear]", "[Pit]", "[Laptime]");
             csv.AppendLine(newline);
 
             int num_laps; int n;
             num_laps = laps_list.Count;
+            // Set the label before doing further work
+            label3.Text = "Laps found: " + num_laps;
             n = 0;
             while (n < num_laps)
             {
@@ -333,16 +336,33 @@ namespace rF2ResultsToCsv
                 csv.AppendLine(newline);
                 n++;
             }
-            string output_fpath = SaveFilePath();
+            toolStripStatusLabel1.Text = "Select output file";
+            output_fpath = SaveFilePath();
+            label4.Text = "Output File: " + output_fpath;
+            toolStripStatusLabel1.Text = "Finished processing results file";
+        }
+
+        private void label1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
             try
             {
+                toolStripStatusLabel1.Text = "Writing to file";
                 File.WriteAllText(output_fpath, csv.ToString());
+                toolStripStatusLabel1.Text = "Writing complete";
+                MessageBox.Show("File has been written.");
             }
             catch (System.IO.IOException ex)
             {
-                MessageBox.Show("Sorry, the file could not be written to. Please select your results file and preferred output again. " + Environment.NewLine + Environment.NewLine  + "Error Code: " + Environment.NewLine + ex);
+                MessageBox.Show("Sorry, the file could not be written to. The file could already be open and can not be modified. Another possible issue is that there is not enough space left on your hard drive." + Environment.NewLine + "Please select your results file and preferred output again. " + Environment.NewLine + Environment.NewLine + "Error Code: " + Environment.NewLine + ex);
             }
-
         }
+
+
     }
 }
