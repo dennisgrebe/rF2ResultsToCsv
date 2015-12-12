@@ -321,7 +321,7 @@ namespace rF2ResultsToCsv
             }
             // Stuff done once after cycling through all the laps and drivers goes here
             toolStripStatusLabel1.Text = "Preparing data";
-            newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14}", "[Driver]","[CarClass]", "[CarNumber]", "[TeamName]", "[LapNum]", "[LapPos]", "[LapStart]", "[Sector1]", "[Sector2]", "[Sector3]", "[Fuel]", "[TiresFront]", "[TiresRear]", "[Pit]", "[Laptime]");
+            newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14}", "Driver","CarClass", "CarNumber", "TeamName", "LapNum", "LapPos", "LapStart", "Sector1", "Sector2", "Sector3", "Fuel", "TiresFront", "TiresRear", "Pit", "Laptime");
             csv.AppendLine(newline);
 
             int num_laps; int n;
