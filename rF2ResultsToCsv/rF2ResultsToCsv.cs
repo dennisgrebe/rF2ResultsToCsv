@@ -17,6 +17,7 @@ namespace rF2ResultsToCsv
         // "Global" Variables needed in both button methods
         string output_fpath;
         StringBuilder csv = new StringBuilder();
+        int use_period_in_laptime;
 
         // Function to select a file and return the filepath
         string GetFilePath ()
@@ -288,11 +289,27 @@ namespace rF2ResultsToCsv
                     }
                     if (lapnode.InnerText != null)
                     {
-                        laptime = lapnode.InnerText;
+                        if (use_period_in_laptime == 0)
+                        {
+                            laptime = lapnode.InnerText;
+                            laptime = laptime.Replace('.', ',');
+                        }
+                        else 
+                            laptime = lapnode.InnerText;
                     }
                     else
                     {
-                        laptime = "999.999";
+                        if (use_period_in_laptime == 1)
+                        {
+                            laptime = "999.999";
+                        }
+                        if (use_period_in_laptime == 0)
+                        {
+                            laptime = "999,999";
+                        }
+                        else
+                            laptime = "999.999";
+                        
                     }
 
                     toolStripStatusLabel1.Text = "Getting driver swaps info";
@@ -362,7 +379,18 @@ namespace rF2ResultsToCsv
                 MessageBox.Show("Sorry, the file could not be written to. The file could already be open and can not be modified. Another possible issue is that there is not enough space left on your hard drive." + Environment.NewLine + "Please select your results file and preferred output again. " + Environment.NewLine + Environment.NewLine + "Error Code: " + Environment.NewLine + ex);
             }
         }
+        // Checkbox to let user select if laptimes should be marked with a period or a comma between seconds and miliseconds
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
 
-
+            if (use_period_in_laptime == 1)
+            {
+                use_period_in_laptime = 0;
+            }
+            else
+            {
+                use_period_in_laptime = 1;
+            }
+        }
     }
 }
