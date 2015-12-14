@@ -60,6 +60,7 @@ namespace rF2ResultsToCsv
         public class rf2_lap
         {
             public string driver { get; set; }
+            public string cartype { get; set; }
             public string carclass { get; set; }
             public string carnumber { get; set; }
             public string teamname { get; set; }
@@ -72,7 +73,8 @@ namespace rF2ResultsToCsv
             public string fuel { get; set; }
             public string tires_front { get; set; }
             public string tires_rear { get; set; }
-            public string pit { get; set; }
+            public string pitin { get; set; }
+            public string pitout { get; set; }
             public string laptime { get; set; }
         }
         // Define class for holding the driver swap data
@@ -98,6 +100,7 @@ namespace rF2ResultsToCsv
             string driver_name; // currently iterated over driver name
             string driver_name_org; // original driver name as defined in the results file, needs to be accessible because the main driver node is referenced by it instead of the currently in-car driver
             string driver_write; // driver name to be written to list that will be the basis for csv output
+            string cartype;
             string carclass;
             string carnumber;
             string teamname;
@@ -110,10 +113,13 @@ namespace rF2ResultsToCsv
             string fuel;
             string tires_front;
             string tires_rear;
-            string pit;
+            string pitin;
+            string pitout;
             string laptime;
             int swap_start;
             int swap_end;
+            // Initialize pitout (will be set "passively" after lines which have pitin = 1, thus we need to initialize for all laps until the first pit stop is recorded)
+            pitout = "0";
 
             toolStripStatusLabel1.Text = "Opening Results File";
             XmlDocument xmlinput = new XmlDocument();
@@ -144,6 +150,14 @@ namespace rF2ResultsToCsv
                     driver_name = "[Unknown]";
                 }
                 driver_name_org = driver_name;
+                if (node.SelectSingleNode("CarType").InnerText != null)
+                {
+                    cartype = node.SelectSingleNode("CarType").InnerText;
+                }
+                else
+                {
+                    cartype = "[Unknown]";
+                }
                 if (node.SelectSingleNode("CarClass").InnerText != null)
                 {
                     carclass = node.SelectSingleNode("CarClass").InnerText;
@@ -281,11 +295,11 @@ namespace rF2ResultsToCsv
                     }
                     if (lapnode.Attributes["pit"] != null)
                     {
-                        pit = lapnode.Attributes["pit"].InnerText;
+                        pitin = lapnode.Attributes["pit"].InnerText;
                     }
                     else
                     {
-                        pit = "0";
+                        pitin = "0";
                     }
                     if (lapnode.InnerText != null)
                     {
@@ -324,21 +338,28 @@ namespace rF2ResultsToCsv
                         driver_write = driver_name;
                     }
 
-
                     // Write the selected values to the list
                     laps_list.Add(new rf2_lap
                     {
-                            driver = driver_write,       carclass = carclass,    carnumber = carnumber,  teamname = teamname,
+                            driver = driver_write,      cartype = cartype,      carclass = carclass,    carnumber = carnumber,  teamname = teamname,
                             lap_num = lap_num,          lap_pos = lap_pos,      lap_start = lap_start,  s1 = s1,
                             s2 = s2,                    s3 = s3,                fuel = fuel,            tires_front = tires_front,
-                            tires_rear = tires_rear,    pit = pit,              laptime = laptime,
-                        }       );        
+                            tires_rear = tires_rear,    pitin = pitin,          pitout = pitout,        laptime = laptime,
+                        }       );
+                    // As pitout is dependent on a previous pitin, we need to re-set it to 0 after writing it out to the lap.
+                    pitout = "0";
+                    // Set pitout for the next lap to 1 if current lap included entering the pitlane
+                    if (pitin == "1")
+                    {
+                        pitout = "1";
                     }
+
+                }
                 // Stuff to do for each driver goes here
             }
             // Stuff done once after cycling through all the laps and drivers goes here
             toolStripStatusLabel1.Text = "Preparing data";
-            newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14}", "Driver","CarClass", "CarNumber", "TeamName", "LapNum", "LapPos", "LapStart", "Sector1", "Sector2", "Sector3", "Fuel", "TiresFront", "TiresRear", "Pit", "Laptime");
+            newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14};{15};{16}", "Driver","CarType", "CarClass", "CarNumber", "TeamName", "LapNum", "LapPos", "LapStart", "Sector1", "Sector2", "Sector3", "Fuel", "TiresFront", "TiresRear", "PitIn", "PitOut", "Laptime");
             csv.AppendLine(newline);
 
             int num_laps; int n;
@@ -349,14 +370,14 @@ namespace rF2ResultsToCsv
             while (n < num_laps)
             {
                 rf2_lap output = laps_list[n];
-                newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14}", output.driver, output.carclass, output.carnumber, output.teamname, output.lap_num, output.lap_pos, output.lap_start, output.s1, output.s2, output.s3, output.fuel, output.tires_front, output.tires_rear, output.pit, output.laptime);
+                newline = string.Format("{0};{1};{2};{3};{4};{5};{6};{7};{8};{9};{10};{11};{12};{13};{14};{15};{16}", output.driver, output.cartype, output.carclass, output.carnumber, output.teamname, output.lap_num, output.lap_pos, output.lap_start, output.s1, output.s2, output.s3, output.fuel, output.tires_front, output.tires_rear, output.pitin, output.pitout, output.laptime);
                 csv.AppendLine(newline);
                 n++;
             }
             toolStripStatusLabel1.Text = "Select output file";
             output_fpath = SaveFilePath();
             label4.Text = "Output File: " + output_fpath;
-            toolStripStatusLabel1.Text = "Finished processing results file";
+            toolStripStatusLabel1.Text = "Finished processing results file, ready to write";
         }
 
         private void label1_Click(object sender, EventArgs e)
